@@ -12,6 +12,7 @@ const jetFirePositions = [
   { x: -12, y: jetSize / 2 - 3 },
 ];
 
+let isGameOver = false;
 let speedBg = 1;
 let position = 0;
 let timer = 0;
@@ -21,18 +22,12 @@ let jet = [
     y: canvas.height - jetSize,
     cx: 0,
     cy: 0,
+    exist: 0,
   },
 ];
-let monster = [
-  // {
-  //   x: canvas.width / 2,
-  //   y: monsterSize / 2,
-  //   cx: 1,
-  //   cy: 1,
-  //   exist: 0,
-  // },
-];
+let monster = [];
 let rocket = [];
+let explosion = [];
 
 const skybg = new Image();
 skybg.src = "img/background.jpg";
@@ -49,6 +44,9 @@ rocketImg.src = "img/rocket.png";
 const flammeImg = new Image();
 flammeImg.src = "img/flamme.png";
 
+const explosionImg = new Image();
+explosionImg.src = "img/boom.png";
+
 canvas.addEventListener("mousemove", (event) => {
   jet[0].x = event.offsetX - 25;
   jet[0].y = event.offsetY - 25;
@@ -61,6 +59,18 @@ skybg.onload = () => {
 };
 
 function game() {
+  if (isGameOver) {
+    setTimeout(gameOverScreenShow, 1000);
+
+    setTimeout(() => {
+      const isNewGame = confirm("Do you want to start again?");
+      if (isNewGame) {
+        window.location.reload();
+      }
+    }, 2000);
+    return;
+  }
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   update();
@@ -70,8 +80,10 @@ function game() {
 }
 
 function update() {
+  gameOverCondition();
+
   timer++;
-  // jetFire();
+
   if (timer % 30 === 0) {
     rocket.push({
       x: jet[0].x - jetSize / 4,
@@ -104,6 +116,9 @@ function update() {
     });
   }
 
+  //explosion animation
+  explosionAnimationShow();
+
   // rockets running
   for (let i = 0; i < rocket.length; i++) {
     rocket[i].x += rocket[i].cx;
@@ -133,31 +148,12 @@ function update() {
       monster[i].cy = -monster[i].cy;
     }
 
-    // jakszczo wylitaje za nyz ekranu
-    // if (monster[i].y > canvas.height) {
-    //   monster.splice(i, 1);
-    // }
-
     collision(monster[i], rocket, rocketSize);
-    // for (let j = 0; j < rocket.length; j++) {
-    //   let rocketCircle = rocket[j];
-    //   let dx = rocketCircle.x - monster[i].x;
-    //   let dy = rocketCircle.y - monster[i].y;
-    //   let distance = Math.hypot(dx, dy);
+    collision(monster[i], jet, jetSize, true);
 
-    //   if (distance <= monsterSize / 4 + rocketSize / 2) {
-    //     monster[i].exist = 1;
-    //     rocket.splice(j, 1);
-    //     break;
-    //   }
-    // }
     if (monster[i].exist == 1) {
       monster.splice(i, 1);
     }
-  }
-
-  if (monster.length >= 50) {
-    monster = [];
   }
 }
 
@@ -178,9 +174,11 @@ function render() {
     );
     ctx.beginPath();
     ctx.arc(rocket[i].x, rocket[i].y, rocketSize / 4, 0, 2 * Math.PI);
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "black";
-    ctx.stroke();
+
+    // for test
+    // ctx.lineWidth = 1;
+    // ctx.strokeStyle = "black";
+    // ctx.stroke();
   }
 
   // monster
@@ -194,13 +192,47 @@ function render() {
     );
     ctx.beginPath();
     ctx.arc(monster[i].x, monster[i].y, monsterSize / 3.5, 0, 2 * Math.PI);
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "black";
-    ctx.stroke();
+
+    // for test
+    // ctx.lineWidth = 1;
+    // ctx.strokeStyle = "black";
+    // ctx.stroke();
+  }
+
+  for (let i = 0; i < explosion.length; i++) {
+    ctx.drawImage(
+      explosionImg,
+      192 * Math.floor(explosion[i].cx),
+      192 * Math.floor(explosion[i].cy),
+      192,
+      192,
+      explosion[i].x,
+      explosion[i].y,
+      monsterSize,
+      monsterSize
+    );
   }
 }
 
-function collision(monsterIndex, objectCollision, objectCollisionSize) {
+function explosionAnimationShow() {
+  for (let i = 0; i < explosion.length; i++) {
+    explosion[i].cx += 0.5;
+    if (explosion[i].cx > 4) {
+      explosion[i].cy++;
+      explosion[i].cx = 0;
+    }
+    if (explosion[i].cy > 4) {
+      explosion.splice(i, 1);
+    }
+  }
+}
+
+function collision(
+  monsterIndex,
+  objectCollision,
+  objectCollisionSize,
+  jetKey = false
+) {
   for (let i = 0; i < objectCollision.length; i++) {
     let objectCollisionCircle = objectCollision[i];
     let dx = objectCollisionCircle.x - monsterIndex.x;
@@ -209,13 +241,33 @@ function collision(monsterIndex, objectCollision, objectCollisionSize) {
 
     if (distance <= monsterSize / 4 + objectCollisionSize / 2) {
       monsterIndex.exist = 1;
-      objectCollision.splice(i, 1);
+      objectCollision[i].exist = 1;
+      explosion.push({
+        x: monsterIndex.x - monsterSize / 2,
+        y: monsterIndex.y - monsterSize / 2,
+        cx: 0,
+        cy: 0,
+      });
+
+      if (jetKey) {
+        explosion.push({
+          x: objectCollision[i].x - objectCollisionSize,
+          y: objectCollision[i].y - objectCollisionSize,
+          cx: 0,
+          cy: 0,
+        });
+      } else {
+        objectCollision.splice(i, 1);
+      }
       break;
     }
   }
 }
 
 function jetFire() {
+  if (jet[0].exist === 1) {
+    return;
+  }
   jetFirePositions.map((jetFirePosition, index) => {
     currentFramesFire[index]++;
     FireShow(
@@ -234,6 +286,9 @@ function FireShow(currentFrame, cx, cy) {
 }
 
 function jetShow() {
+  if (jet[0].exist === 1) {
+    return;
+  }
   ctx.drawImage(
     jetImg,
     jet[0].x - jetSize / 2,
@@ -243,9 +298,11 @@ function jetShow() {
   );
   ctx.beginPath();
   ctx.arc(jet[0].x, jet[0].y, jetSize / 2, 0, 2 * Math.PI);
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = "black";
-  ctx.stroke();
+
+  // for test
+  // ctx.lineWidth = 1;
+  // ctx.strokeStyle = "black";
+  // ctx.stroke();
 }
 
 function backgroundRun() {
@@ -265,6 +322,65 @@ function backgroundRun() {
   }
 }
 
+function random(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function gameOverCondition() {
+  if (jet[0].exist === 1 || monster.length >= 90) {
+    isGameOver = true;
+  }
+}
+
+function gameOverScreenShow() {
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.font = "40px Arial";
+  ctx.textAlign = "center";
+  ctx.strokeStyle = "red";
+  ctx.strokeText("Game Over", canvas.width / 2, canvas.height / 2 - 60);
+  ctx.strokeText(
+    "Сongratulations, you are dead",
+    canvas.width / 2,
+    canvas.height / 2
+  );
+
+  sadSmile(40, canvas.width / 2 - 80, canvas.height / 2 + 60 / 2);
+  sadSmile(50, canvas.width / 2 - 20, canvas.height / 2 + 50 / 2);
+  sadSmile(40, canvas.width / 2 + 50, canvas.height / 2 + 60 / 2);
+}
+
+function sadSmile(size, x, y) {
+  ctx.beginPath();
+  ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+  ctx.fillStyle = "red";
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "black";
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(x + size * 0.35, y + size * 0.35, size * 0.1, 0, Math.PI * 2);
+  ctx.arc(x + size * 0.65, y + size * 0.35, size * 0.1, 0, Math.PI * 2);
+  ctx.fillStyle = "black";
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(x + size / 2, y + size * 0.85, size * 0.25, 0, Math.PI, true);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "black";
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(x + size * 0.25, y + size * 0.2);
+  ctx.lineTo(x + size * 0.5, y);
+  ctx.lineTo(x + size * 0.75, y + size * 0.2);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "black";
+  ctx.stroke();
+}
+
 let requestAnimationFrameForAll = (function () {
   return (
     window.requestAnimationFrame ||
@@ -277,7 +393,3 @@ let requestAnimationFrameForAll = (function () {
     }
   );
 })();
-
-function random(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}

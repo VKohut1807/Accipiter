@@ -30,6 +30,7 @@ body {
 }
 
 #canvas {
+  position: relative;
   background-color: green;
   display: block;
   cursor: none;
