@@ -1,34 +1,6 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-const jetSize = 50;
-const monsterSize = 100;
-const rocketSize = 10;
-
-const currentFramesFire = [3, 0, 3];
-const jetFirePositions = [
-  { x: 2, y: jetSize / 2 - 3 },
-  { x: -5, y: jetSize / 2 },
-  { x: -12, y: jetSize / 2 - 3 },
-];
-
-let isGameOver = false;
-let speedBg = 1;
-let position = 0;
-let timer = 0;
-let jet = [
-  {
-    x: (canvas.width - jetSize) / 2,
-    y: canvas.height - jetSize,
-    cx: 0,
-    cy: 0,
-    exist: 0,
-  },
-];
-let monster = [];
-let rocket = [];
-let explosion = [];
-
 const skybg = new Image();
 skybg.src = "img/background.jpg";
 
@@ -47,14 +19,55 @@ flammeImg.src = "img/flamme.png";
 const explosionImg = new Image();
 explosionImg.src = "img/boom.png";
 
+const shieldImg = new Image();
+shieldImg.src = "img/shield.png";
+
+const jetSize = 50;
+const monsterSize = 100;
+const rocketSize = 10;
+
+let isGameOver = false;
+let speedBg = 1;
+let positionBg = 0;
+let timer = 0;
+let jet = [
+  {
+    x: (canvas.width - jetSize) / 2,
+    y: canvas.height - jetSize,
+    cx: 0,
+    cy: 0,
+    exist: 0,
+    enginesFire: [
+      { x: 2, y: jetSize / 2 - 3 },
+      { x: -5, y: jetSize / 2 },
+      { x: -12, y: jetSize / 2 - 3 },
+    ],
+    currentFramesFire: [3, 0, 3],
+    shot: true,
+  },
+];
+let monster = [];
+let rocket = [];
+let explosion = [];
+
+let scoreRectangleData = {
+  width: 170,
+  height: 40,
+  textSize: "15px",
+  textColor: "red",
+  textFont: "Comic Sans MS",
+  text: "Enemies Killed:",
+  score: 0,
+  keyLS: "userScore",
+};
+
 canvas.addEventListener("mousemove", (event) => {
   jet[0].x = event.offsetX - 25;
   jet[0].y = event.offsetY - 25;
 });
+canvas.addEventListener("click", shotOfJet);
 
 skybg.onload = () => {
-  console.log("bg", canvas.width);
-
   game();
 };
 
@@ -84,35 +97,19 @@ function update() {
 
   timer++;
 
-  if (timer % 30 === 0) {
-    rocket.push({
-      x: jet[0].x - jetSize / 4,
-      y: jet[0].y - jetSize / 4,
-      cx: -0.5,
-      cy: -5,
-    });
-    rocket.push({
-      x: jet[0].x,
-      y: jet[0].y - jetSize / 2,
-      cx: 0,
-      cy: -5,
-    });
-    rocket.push({
-      x: jet[0].x + jetSize / 4,
-      y: jet[0].y - jetSize / 4,
-      cx: 0.5,
-      cy: -5,
-    });
-  }
-
   if (timer % 10 === 0) {
     monster.push({
       x: random(0 + monsterSize / 4, canvas.width - monsterSize / 4),
       y: 0 + monsterSize / 4,
       cx: random(-1, 1),
       cy: random(2, 10),
-      burst: false,
       exist: 0,
+      currentFramesShieldX: 0,
+      currentFramesShieldY: 0,
+      speedAnimation: random(3, 7) / 10,
+      maxFrameX: 2,
+      maxFrameY: 1,
+      shieldRotation: 0,
     });
   }
 
@@ -131,6 +128,13 @@ function update() {
 
   // monsters running
   for (let i = 0; i < monster.length; i++) {
+    shieldAnimation(
+      monster[i],
+      monster[i].speedAnimation,
+      monster[i].maxFrameX,
+      monster[i].maxFrameY,
+      random(1, 5) / 100
+    );
     monster[i].x += monster[i].cx;
     monster[i].y += monster[i].cy;
 
@@ -152,6 +156,7 @@ function update() {
     collision(monster[i], jet, jetSize, true);
 
     if (monster[i].exist == 1) {
+      scoreRectangleData.score++;
       monster.splice(i, 1);
     }
   }
@@ -159,6 +164,8 @@ function update() {
 
 function render() {
   backgroundRun();
+
+  scoreRectangle(scoreRectangleData);
 
   jetShow();
   jetFire();
@@ -190,6 +197,13 @@ function render() {
       monsterSize,
       monsterSize
     );
+    shieldShow(
+      monster[i].currentFramesShieldX,
+      monster[i].currentFramesShieldY,
+      monster[i].x,
+      monster[i].y,
+      monster[i].shieldRotation
+    );
     ctx.beginPath();
     ctx.arc(monster[i].x, monster[i].y, monsterSize / 3.5, 0, 2 * Math.PI);
 
@@ -212,6 +226,48 @@ function render() {
       monsterSize
     );
   }
+}
+
+function shieldAnimation(
+  monsterIndex,
+  speedAnimation,
+  maxFrameX,
+  maxFrameY,
+  rotationAnimation
+) {
+  monsterIndex.shieldRotation += rotationAnimation;
+  monsterIndex.currentFramesShieldX += speedAnimation;
+  if (monsterIndex.currentFramesShieldX > maxFrameX) {
+    monsterIndex.currentFramesShieldY++;
+    monsterIndex.currentFramesShieldX = 0;
+  }
+  if (monsterIndex.currentFramesShieldY > maxFrameY) {
+    monsterIndex.currentFramesShieldX = 0;
+    monsterIndex.currentFramesShieldY = 0;
+  }
+  if (monsterIndex.shieldRotation > 50) {
+    monsterIndex.shieldRotation = 0;
+  }
+}
+
+function shieldShow(lineX, lineY, cx, cy, rotationAngle) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotationAngle);
+
+  ctx.drawImage(
+    shieldImg,
+    238 * Math.floor(lineX),
+    238 * Math.floor(lineY),
+    238,
+    238,
+    -monsterSize / 4 - 5,
+    -monsterSize / 4 - 5,
+    60,
+    60
+  );
+
+  ctx.restore();
 }
 
 function explosionAnimationShow() {
@@ -268,20 +324,20 @@ function jetFire() {
   if (jet[0].exist === 1) {
     return;
   }
-  jetFirePositions.map((jetFirePosition, index) => {
-    currentFramesFire[index]++;
-    FireShow(
-      currentFramesFire[index],
-      jet[0].x + jetFirePosition.x,
-      jet[0].y + jetFirePosition.y
+  jet[0].enginesFire.map((engineFire, index) => {
+    jet[0].currentFramesFire[index]++;
+    fireShow(
+      jet[0].currentFramesFire[index],
+      jet[0].x + engineFire.x,
+      jet[0].y + engineFire.y
     );
-    if (currentFramesFire[index] >= 6) {
-      currentFramesFire[index] = 0;
+    if (jet[0].currentFramesFire[index] >= 6) {
+      jet[0].currentFramesFire[index] = 0;
     }
   });
 }
 
-function FireShow(currentFrame, cx, cy) {
+function fireShow(currentFrame, cx, cy) {
   ctx.drawImage(flammeImg, 16 * currentFrame, 0, 16, 48, cx, cy, 10, 25);
 }
 
@@ -305,20 +361,49 @@ function jetShow() {
   // ctx.stroke();
 }
 
+function shotOfJet() {
+  if (jet[0].shot) {
+    rocket.push({
+      x: jet[0].x - jetSize / 4,
+      y: jet[0].y - jetSize / 4,
+      cx: -0.5,
+      cy: -5,
+    });
+    rocket.push({
+      x: jet[0].x,
+      y: jet[0].y - jetSize / 2,
+      cx: 0,
+      cy: -5,
+    });
+    rocket.push({
+      x: jet[0].x + jetSize / 4,
+      y: jet[0].y - jetSize / 4,
+      cx: 0.5,
+      cy: -5,
+    });
+
+    jet[0].shot = false;
+
+    setTimeout(function () {
+      jet[0].shot = true;
+    }, 350);
+  }
+}
+
 function backgroundRun() {
-  ctx.drawImage(skybg, 0, position, canvas.width, canvas.height);
+  ctx.drawImage(skybg, 0, positionBg, canvas.width, canvas.height);
   ctx.drawImage(
     skybg,
     0,
-    position - canvas.height,
+    positionBg - canvas.height,
     canvas.width,
     canvas.height
   );
 
-  position += speedBg;
+  positionBg += speedBg;
 
-  if (position >= canvas.height) {
-    position = 0;
+  if (positionBg >= canvas.height) {
+    positionBg = 0;
   }
 }
 
@@ -329,6 +414,10 @@ function random(min, max) {
 function gameOverCondition() {
   if (jet[0].exist === 1 || monster.length >= 90) {
     isGameOver = true;
+
+    if (getItem(scoreRectangleData.keyLS) <= scoreRectangleData.score) {
+      setItem(scoreRectangleData.keyLS, scoreRectangleData.score);
+    }
   }
 }
 
@@ -339,16 +428,27 @@ function gameOverScreenShow() {
   ctx.font = "40px Arial";
   ctx.textAlign = "center";
   ctx.strokeStyle = "red";
-  ctx.strokeText("Game Over", canvas.width / 2, canvas.height / 2 - 60);
+  ctx.strokeText("Game Over", canvas.width / 2, canvas.height / 2 - 120);
+
   ctx.strokeText(
     "Сongratulations, you are dead",
     canvas.width / 2,
+    canvas.height / 2 - 60
+  );
+  ctx.strokeText(
+    `Destroy enemies: ${scoreRectangleData.score}`,
+    canvas.width / 2,
     canvas.height / 2
   );
+  ctx.strokeText(
+    `Record of destroyed enemies: ${getItem(scoreRectangleData.keyLS)}`,
+    canvas.width / 2,
+    canvas.height / 2 + 60
+  );
 
-  sadSmile(40, canvas.width / 2 - 80, canvas.height / 2 + 60 / 2);
-  sadSmile(50, canvas.width / 2 - 20, canvas.height / 2 + 50 / 2);
-  sadSmile(40, canvas.width / 2 + 50, canvas.height / 2 + 60 / 2);
+  sadSmile(40, canvas.width / 2 - 80, canvas.height / 2 + 100);
+  sadSmile(50, canvas.width / 2 - 20, canvas.height / 2 + 90);
+  sadSmile(40, canvas.width / 2 + 50, canvas.height / 2 + 100);
 }
 
 function sadSmile(size, x, y) {
@@ -379,6 +479,34 @@ function sadSmile(size, x, y) {
   ctx.lineWidth = 2;
   ctx.strokeStyle = "black";
   ctx.stroke();
+}
+
+function scoreRectangle(data) {
+  ctx.fillStyle = data.textColor;
+  ctx.font = `${data.textSize} ${data.textFont}`;
+  ctx.fillText(
+    `${data.text} ${data.score}`,
+    canvas.width - data.width,
+    data.height
+  );
+}
+
+function getItem(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key));
+  } catch (error) {
+    console.error("Error in getting data from localStorage", error);
+    return null;
+  }
+}
+
+function setItem(key, data) {
+  try {
+    return localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.error("Error in getting data from localStorage", error);
+    return null;
+  }
 }
 
 let requestAnimationFrameForAll = (function () {

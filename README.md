@@ -1,8 +1,12 @@
 # Game "Accipiter"
 
-#### One against the legion
+### `One against the legion`
 
-![ggef9d0a30f8](https://github.com/VKohut1807/Accipiter/assets/48514587/049bec79-e053-45e6-a394-a73ab3447882)
+#### Сurrent version - v.1.2.0
+
+<br>
+
+![gg4e64e40fae](https://github.com/VKohut1807/Accipiter/assets/48514587/cbd7358e-d700-47f6-a175-132ad03411af)
 
 ---
 
@@ -43,6 +47,19 @@
 - Added an explosion animation when a jet fighter collides with a UFO.
 
 - Added Game Over window.
+
+<br>
+
+### Version 1.2.0:
+
+- Added energy shield animation for UFO objects.
+
+- Added rotation of energy shield animation.
+
+- Added the destroyed objects counter.
+
+- Added display of data on the number of destroyed enemies and also display of the record for
+  number of destroyed enemies in the Game over window
 
 <br>
 
