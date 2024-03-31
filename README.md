@@ -6,7 +6,7 @@
 
 <br>
 
-![gg4e64e40fae](https://github.com/VKohut1807/Accipiter/assets/48514587/cbd7358e-d700-47f6-a175-132ad03411af)
+![gg4e64e40fae](https://github.com/VKohut1807/Accipiter-vanilla_js-/assets/48514587/473986c5-27eb-4805-b2bb-a4382ff1a983)
 
 ---
 
